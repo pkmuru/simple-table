@@ -1,0 +1,195 @@
+// column-visibility-demo.component.ts
+import { Component, Input } from "@angular/core";
+import {SimpleTableComponent} from "@simple-table/angular";import type { AngularHeaderObject, ColumnVisibilityState, Row, Theme } from "@simple-table/angular";
+import { columnVisibilityConfig, getColumnVisibilityDemoHeaders, loadColumnVisibilityDemoSaved, saveColumnVisibilityDemoState } from "./column-visibility.demo-data";
+import { MarketingColumnEditorRowComponent } from "./marketing-column-editor-row.component";
+import "@simple-table/angular/styles.css";
+
+@Component({
+  selector: "column-visibility-demo",
+  standalone: true,
+  imports: [SimpleTableComponent],
+  template: `
+    <simple-table
+      [rows]="rows"
+      [defaultHeaders]="headers"
+      [height]="height"
+      [theme]="theme"
+      [editColumns]="tableProps.editColumns"
+      [editColumnsInitOpen]="tableProps.editColumnsInitOpen"
+      [columnEditorConfig]="columnEditorConfig"
+      [onColumnVisibilityChange]="onVisibilityChange"
+    ></simple-table>
+  `,
+})
+export class ColumnVisibilityDemoComponent {
+  @Input() height: string | number = "400px";
+  @Input() theme?: Theme;
+
+  readonly rows: Row[] = columnVisibilityConfig.rows;
+  readonly headers: AngularHeaderObject[] = getColumnVisibilityDemoHeaders(
+    loadColumnVisibilityDemoSaved(),
+  );
+  readonly tableProps = columnVisibilityConfig.tableProps;
+  readonly columnEditorConfig = {
+    ...columnVisibilityConfig.tableProps.columnEditorConfig,
+    rowRenderer: MarketingColumnEditorRowComponent,
+  };
+
+  readonly onVisibilityChange = (state: ColumnVisibilityState) => {
+    saveColumnVisibilityDemoState(state);
+  };
+}
+
+
+// column-visibility.demo-data.ts
+// Self-contained demo table setup for this example (aligned with simple-table-marketing column visibility demo).
+import type { ColumnVisibilityState, AngularHeaderObject, Row } from "@simple-table/angular";
+
+export const COLUMN_VISIBILITY_DEMO_STORAGE_KEY = "columnVisibilityDemo";
+
+export function loadColumnVisibilityDemoSaved(): ColumnVisibilityState {
+  if (typeof window === "undefined") return {};
+  try {
+    const saved = localStorage.getItem(COLUMN_VISIBILITY_DEMO_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveColumnVisibilityDemoState(state: ColumnVisibilityState): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(COLUMN_VISIBILITY_DEMO_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    /* ignore */
+  }
+}
+
+export const columnVisibilityData: Row[] = [
+  { id: 1, firstName: "Alice", lastName: "Johnson", email: "alice@example.com", phone: "555-0101", role: "Engineer", department: "Engineering", location: "NYC", startDate: "2021-03-15" },
+  { id: 2, firstName: "Bob", lastName: "Martinez", email: "bob@example.com", phone: "555-0102", role: "Designer", department: "Design", location: "LA", startDate: "2022-07-22" },
+  { id: 3, firstName: "Clara", lastName: "Chen", email: "clara@example.com", phone: "555-0103", role: "PM", department: "Product", location: "SF", startDate: "2020-01-10" },
+  { id: 4, firstName: "David", lastName: "Kim", email: "david@example.com", phone: "555-0104", role: "Engineer", department: "Engineering", location: "CHI", startDate: "2019-11-05" },
+  { id: 5, firstName: "Elena", lastName: "Rossi", email: "elena@example.com", phone: "555-0105", role: "Analyst", department: "Analytics", location: "BOS", startDate: "2023-02-14" },
+  { id: 6, firstName: "Frank", lastName: "Müller", email: "frank@example.com", phone: "555-0106", role: "Engineer", department: "Engineering", location: "SEA", startDate: "2021-09-30" },
+  { id: 7, firstName: "Grace", lastName: "Park", email: "grace@example.com", phone: "555-0107", role: "Designer", department: "Design", location: "AUS", startDate: "2022-04-18" },
+  { id: 8, firstName: "Henry", lastName: "Patel", email: "henry@example.com", phone: "555-0108", role: "Lead", department: "Engineering", location: "DEN", startDate: "2018-05-20" },
+];
+
+export const columnVisibilityHeaders: AngularHeaderObject[] = [
+  { accessor: "id", label: "ID", width: 60, type: "number" },
+  { accessor: "firstName", label: "First Name", width: 120, type: "string" },
+  { accessor: "lastName", label: "Last Name", width: 120, type: "string" },
+  { accessor: "email", label: "Email", width: 200, type: "string" },
+  { accessor: "phone", label: "Phone", width: 120, type: "string", hide: true },
+  { accessor: "role", label: "Role", width: 130, type: "string" },
+  { accessor: "department", label: "Department", width: 140, type: "string" },
+  { accessor: "location", label: "Location", width: 100, type: "string", hide: true },
+  {
+    accessor: "startDate",
+    label: "Start Date",
+    width: 130,
+    type: "date",
+    valueFormatter: ({ value }) => new Date(value as string).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+  },
+];
+
+export function getColumnVisibilityDemoHeaders(
+  savedVisibility: ColumnVisibilityState = loadColumnVisibilityDemoSaved(),
+): AngularHeaderObject[] {
+  return columnVisibilityHeaders.map((header) => ({
+    ...header,
+    hide:
+      savedVisibility[header.accessor] === false ||
+      (savedVisibility[header.accessor] === undefined && header.accessor === "email") ||
+      (savedVisibility[header.accessor] === undefined && header.hide === true),
+  }));
+}
+
+export const columnVisibilityConfig = {
+  headers: columnVisibilityHeaders,
+  rows: columnVisibilityData,
+  tableProps: {
+    editColumns: true as const,
+    editColumnsInitOpen: true as const,
+    columnEditorConfig: {
+      text: "Manage Columns",
+      searchEnabled: true,
+      searchPlaceholder: "Search columns…",
+    },
+  },
+} as const;
+
+
+// marketing-column-editor-row.component.ts
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  Input,
+  OnChanges,
+  ViewChild,
+} from "@angular/core";
+import type { ColumnEditorRowRendererProps } from "@simple-table/angular";
+
+function attach(slot: unknown, host: HTMLElement | undefined): void {
+  if (!host) return;
+  host.replaceChildren();
+  if (slot == null) return;
+  if (typeof slot === "string") {
+    host.textContent = slot;
+  } else if (slot instanceof Node) {
+    host.appendChild(slot);
+  }
+}
+
+/** Marketing-style column-editor row; slots are framework-provided nodes or strings. */
+@Component({
+  selector: "st-examples-marketing-column-editor-row",
+  standalone: true,
+  template: `
+    <div
+      style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding-right:8px;"
+    >
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span #expandHost></span>
+        <span #checkboxHost></span>
+        <span #labelHost></span>
+      </div>
+      <span #dragHost></span>
+    </div>
+  `,
+})
+export class MarketingColumnEditorRowComponent implements AfterViewInit, OnChanges {
+  @Input({ required: true }) accessor!: ColumnEditorRowRendererProps["accessor"];
+  @Input({ required: true }) header!: ColumnEditorRowRendererProps["header"];
+  @Input({ required: true }) components!: ColumnEditorRowRendererProps["components"];
+  @Input() panelSection?: ColumnEditorRowRendererProps["panelSection"];
+  @Input() isEssential?: ColumnEditorRowRendererProps["isEssential"];
+  @Input() canToggleVisibility?: ColumnEditorRowRendererProps["canToggleVisibility"];
+  @Input() allowColumnPinning?: ColumnEditorRowRendererProps["allowColumnPinning"];
+  @Input() pinControl?: ColumnEditorRowRendererProps["pinControl"];
+
+  @ViewChild("expandHost") expandRef?: ElementRef<HTMLSpanElement>;
+  @ViewChild("checkboxHost") checkboxRef?: ElementRef<HTMLSpanElement>;
+  @ViewChild("labelHost") labelRef?: ElementRef<HTMLSpanElement>;
+  @ViewChild("dragHost") dragRef?: ElementRef<HTMLSpanElement>;
+
+  ngAfterViewInit(): void {
+    this.syncSlots();
+  }
+
+  ngOnChanges(): void {
+    this.syncSlots();
+  }
+
+  private syncSlots(): void {
+    const c = this.components;
+    attach(c.expandIcon, this.expandRef?.nativeElement);
+    attach(c.checkbox, this.checkboxRef?.nativeElement);
+    attach(c.labelContent, this.labelRef?.nativeElement);
+    attach(c.dragIcon, this.dragRef?.nativeElement);
+  }
+}

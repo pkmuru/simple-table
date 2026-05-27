@@ -1,0 +1,422 @@
+// hr-demo.component.ts
+import { Component, Input } from "@angular/core";
+import { SimpleTableComponent } from "@simple-table/angular";
+import type { AngularCellRenderer, AngularHeaderObject, CellChangeProps, Theme } from "@simple-table/angular";
+import { hrConfig } from "./hr.demo-data";
+import { HrFullNameCellComponent } from "./hr-full-name-cell.component";
+import { HrHireDateCellComponent } from "./hr-hire-date-cell.component";
+import { HrPerformanceCellComponent } from "./hr-performance-cell.component";
+import { HrSalaryCellComponent } from "./hr-salary-cell.component";
+import { HrStatusCellComponent } from "./hr-status-cell.component";
+import { HrYearsCellComponent } from "./hr-years-cell.component";
+import "@simple-table/angular/styles.css";
+
+const RENDERERS: Partial<Record<string, AngularCellRenderer>> = {
+  fullName: HrFullNameCellComponent,
+  performanceScore: HrPerformanceCellComponent,
+  hireDate: HrHireDateCellComponent,
+  yearsOfService: HrYearsCellComponent,
+  salary: HrSalaryCellComponent,
+  status: HrStatusCellComponent,
+};
+
+function buildHRHeaders(): AngularHeaderObject[] {
+  return hrConfig.headers.map((h): AngularHeaderObject => {
+    const cellRenderer = RENDERERS[String(h.accessor)];
+    return cellRenderer ? { ...h, cellRenderer } : { ...h };
+  });
+}
+
+@Component({
+  selector: "hr-demo",
+  standalone: true,
+  imports: [SimpleTableComponent],
+  template: `
+    <simple-table
+      [defaultHeaders]="headers"
+      [rows]="data"
+      [height]="height"
+      [theme]="theme"
+      [columnReordering]="true"
+      [columnResizing]="true"
+      [selectableCells]="true"
+      [shouldPaginate]="true"
+      [rowsPerPage]="rowsPerPage"
+      [customTheme]="{ rowHeight: 48 }"
+      (cellEdit)="onCellEdit($event)"
+    ></simple-table>
+  `,
+})
+export class HRDemoComponent {
+  @Input() height: string | number = "400px";
+  @Input() theme?: Theme;
+
+  readonly headers: AngularHeaderObject[] = buildHRHeaders();
+  data = [...hrConfig.rows];
+
+  get rowsPerPage(): number {
+    const heightNum = typeof this.height === "number" ? this.height : 400;
+    return Math.floor(heightNum / 48);
+  }
+
+  onCellEdit({ accessor, newValue, row }: CellChangeProps): void {
+    this.data = this.data.map((item) => (item.id === row.id ? { ...item, [accessor]: newValue } : item));
+  }
+}
+
+
+// hr-full-name-cell.component.ts
+import { Component, Input } from "@angular/core";
+import type { Row, Theme } from "@simple-table/angular";
+import { getHRThemeColors } from "./hr.demo-data";
+import type { HREmployee } from "./hr.demo-data";
+
+@Component({
+  standalone: true,
+  selector: "demo-hr-full-name",
+  template: `
+    <div style="display:flex;align-items:center;">
+      <div
+        style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;"
+        [style.background-color]="c.avatarBg"
+        [style.color]="c.avatarText"
+      >
+        {{ initials }}
+      </div>
+      <div style="margin-left:8px;">
+        <div>{{ d.fullName }}</div>
+        <div style="font-size:12px;" [style.color]="c.grayMuted">{{ d.position }}</div>
+      </div>
+    </div>
+  `,
+})
+export class HrFullNameCellComponent {
+  @Input({ required: true }) row!: Row;
+  @Input() theme?: Theme;
+
+  get d(): HREmployee {
+    return this.row as unknown as HREmployee;
+  }
+
+  get c(): Record<string, string> {
+    return getHRThemeColors(this.theme);
+  }
+
+  get initials(): string {
+    return `${this.d.firstName?.charAt(0) || ""}${this.d.lastName?.charAt(0) || ""}`;
+  }
+}
+
+
+// hr-hire-date-cell.component.ts
+import { Component, Input } from "@angular/core";
+import type { Row, Theme } from "@simple-table/angular";
+import { getHRThemeColors } from "./hr.demo-data";
+import type { HREmployee } from "./hr.demo-data";
+
+@Component({
+  standalone: true,
+  selector: "demo-hr-hire-date",
+  template: `
+    @if (d.hireDate) {
+      <span [style.color]="c.gray">{{ formatted }}</span>
+    }
+  `,
+})
+export class HrHireDateCellComponent {
+  @Input({ required: true }) row!: Row;
+  @Input() theme?: Theme;
+
+  get d(): HREmployee {
+    return this.row as unknown as HREmployee;
+  }
+
+  get c(): Record<string, string> {
+    return getHRThemeColors(this.theme);
+  }
+
+  get formatted(): string {
+    const raw = this.d.hireDate;
+    if (!raw) return "";
+    const [year, month, day] = raw.split("-").map(Number);
+    const date = new Date(year!, month! - 1, day!);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+}
+
+
+// hr-performance-cell.component.ts
+import { Component, Input } from "@angular/core";
+import type { Row, Theme } from "@simple-table/angular";
+import { getHRThemeColors } from "./hr.demo-data";
+import type { HREmployee } from "./hr.demo-data";
+
+@Component({
+  standalone: true,
+  selector: "demo-hr-performance",
+  template: `
+    <div style="width:100%;display:flex;flex-direction:column;">
+      <div
+        style="height:6px;width:100%;border-radius:100px;overflow:hidden;"
+        [style.background-color]="c.progressBg"
+      >
+        <div
+          style="height:100%;border-radius:100px;"
+          [style.width.%]="score"
+          [style.background-color]="barColor"
+        ></div>
+      </div>
+      <div style="font-size:12px;text-align:center;margin-top:4px;" [style.color]="c.gray">{{ score }}/100</div>
+    </div>
+  `,
+})
+export class HrPerformanceCellComponent {
+  @Input({ required: true }) row!: Row;
+  @Input() theme?: Theme;
+
+  get d(): HREmployee {
+    return this.row as unknown as HREmployee;
+  }
+
+  get score(): number {
+    return this.d.performanceScore;
+  }
+
+  get c(): ReturnType<typeof getHRThemeColors> {
+    return getHRThemeColors(this.theme);
+  }
+
+  get barColor(): string {
+    const s = this.score;
+    const colors = this.c;
+    if (s >= 90) return colors.progressSuccess;
+    if (s >= 65) return colors.progressNormal;
+    return colors.progressException;
+  }
+}
+
+
+// hr-salary-cell.component.ts
+import { Component, Input } from "@angular/core";
+import type { Row, Theme } from "@simple-table/angular";
+import { getHRThemeColors } from "./hr.demo-data";
+import type { HREmployee } from "./hr.demo-data";
+
+@Component({
+  standalone: true,
+  selector: "demo-hr-salary",
+  template: `<span [style.color]="c.gray">{{ display }}</span>`,
+})
+export class HrSalaryCellComponent {
+  @Input({ required: true }) row!: Row;
+  @Input() theme?: Theme;
+
+  get d(): HREmployee {
+    return this.row as unknown as HREmployee;
+  }
+
+  get c(): Record<string, string> {
+    return getHRThemeColors(this.theme);
+  }
+
+  get display(): string {
+    return `$${this.d.salary.toLocaleString()}`;
+  }
+}
+
+
+// hr-status-cell.component.ts
+import { Component, Input } from "@angular/core";
+import type { Row, Theme } from "@simple-table/angular";
+import { getHRThemeColors, HR_STATUS_COLOR_MAP } from "./hr.demo-data";
+import type { HREmployee, HRTagColorKey } from "./hr.demo-data";
+
+@Component({
+  standalone: true,
+  selector: "demo-hr-status",
+  template: `
+    @if (d.status) {
+      <span
+        style="padding:0 7px;font-size:12px;line-height:20px;border-radius:2px;display:inline-block;"
+        [style.background-color]="tagColors.bg"
+        [style.color]="tagColors.text"
+        >{{ d.status }}</span>
+    }
+  `,
+})
+export class HrStatusCellComponent {
+  @Input({ required: true }) row!: Row;
+  @Input() theme?: Theme;
+
+  get d(): HREmployee {
+    return this.row as unknown as HREmployee;
+  }
+
+  get c(): ReturnType<typeof getHRThemeColors> {
+    return getHRThemeColors(this.theme);
+  }
+
+  get tagColors(): { bg: string; text: string } {
+    const status = this.d.status || "";
+    const key: HRTagColorKey = HR_STATUS_COLOR_MAP[status] || "default";
+    return this.c.tagColors[key] || this.c.tagColors.default;
+  }
+}
+
+
+// hr-years-cell.component.ts
+import { Component, Input } from "@angular/core";
+import type { Row, Theme } from "@simple-table/angular";
+import { getHRThemeColors } from "./hr.demo-data";
+import type { HREmployee } from "./hr.demo-data";
+
+@Component({
+  standalone: true,
+  selector: "demo-hr-years",
+  template: `
+    @if (d.yearsOfService !== null) {
+      <span [style.color]="c.gray">{{ d.yearsOfService }} yrs</span>
+    }
+  `,
+})
+export class HrYearsCellComponent {
+  @Input({ required: true }) row!: Row;
+  @Input() theme?: Theme;
+
+  get d(): HREmployee {
+    return this.row as unknown as HREmployee;
+  }
+
+  get c(): Record<string, string> {
+    return getHRThemeColors(this.theme);
+  }
+}
+
+
+// hr.demo-data.ts
+// Self-contained demo table setup for this example.
+import type { AngularHeaderObject } from "@simple-table/angular";
+
+export interface HREmployee {
+  id: number;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  position: string;
+  performanceScore: number;
+  department: string;
+  email: string;
+  location: string;
+  hireDate: string;
+  yearsOfService: number;
+  salary: number;
+  status: string;
+  isRemoteEligible: boolean;
+}
+
+
+const HR_FIRST_NAMES = ["James", "Mary", "Robert", "Patricia", "John", "Jennifer", "Michael", "Linda", "David", "Elizabeth", "William", "Barbara", "Richard", "Susan", "Joseph", "Jessica", "Thomas", "Sarah", "Charles", "Karen"];
+const HR_LAST_NAMES = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin"];
+const POSITIONS = ["Software Engineer", "Senior Engineer", "Tech Lead", "Engineering Manager", "Product Manager", "Designer", "Data Scientist", "DevOps Engineer", "QA Engineer", "Solutions Architect"];
+const DEPARTMENTS = ["Engineering", "Marketing", "Sales", "Finance", "HR", "Operations", "Customer Support"];
+const LOCATIONS = ["New York", "Los Angeles", "Chicago", "San Francisco", "Austin", "Boston", "Seattle", "Remote"];
+const HR_STATUSES = ["Active", "On Leave", "Probation", "Contract", "Terminated"];
+
+export function generateHRData(count: number = 100): HREmployee[] {
+  return Array.from({ length: count }, (_, i) => {
+    const firstName = HR_FIRST_NAMES[i % HR_FIRST_NAMES.length];
+    const lastName = HR_LAST_NAMES[i % HR_LAST_NAMES.length];
+    const yearsOfService = Math.floor(Math.random() * 15);
+    const hireYear = 2024 - yearsOfService;
+    const hireMonth = String(1 + Math.floor(Math.random() * 12)).padStart(2, "0");
+    const hireDay = String(1 + Math.floor(Math.random() * 28)).padStart(2, "0");
+    return {
+      id: i + 1,
+      firstName,
+      lastName,
+      fullName: `${firstName} ${lastName}`,
+      position: POSITIONS[i % POSITIONS.length],
+      performanceScore: Math.floor(40 + Math.random() * 60),
+      department: DEPARTMENTS[i % DEPARTMENTS.length],
+      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@company.com`,
+      location: LOCATIONS[i % LOCATIONS.length],
+      hireDate: `${hireYear}-${hireMonth}-${hireDay}`,
+      yearsOfService,
+      salary: Math.floor(50000 + Math.random() * 150000),
+      status: HR_STATUSES[i % 10 === 9 ? 4 : i % 7 === 0 ? 1 : i % 11 === 0 ? 2 : i % 13 === 0 ? 3 : 0],
+      isRemoteEligible: Math.random() > 0.3,
+    };
+  });
+}
+
+export const hrData = generateHRData(100);
+
+export const hrHeaders: AngularHeaderObject[] = [
+  { accessor: "fullName", label: "Employee", width: 220, isSortable: true, isEditable: false, align: "left", pinned: "left", type: "string" },
+  {
+    accessor: "performanceScore", label: "Performance", width: 160, isSortable: true, isEditable: true, align: "center", type: "number",
+    valueFormatter: ({ value }) => `${value}/100`,
+    useFormattedValueForClipboard: true,
+    exportValueGetter: ({ value }) => `${value}%`,
+  },
+  {
+    accessor: "department", label: "Department", width: 150, isSortable: true, isEditable: true, align: "left", type: "enum",
+    enumOptions: [
+      { label: "Engineering", value: "Engineering" }, { label: "Marketing", value: "Marketing" },
+      { label: "Sales", value: "Sales" }, { label: "Finance", value: "Finance" },
+      { label: "HR", value: "HR" }, { label: "Operations", value: "Operations" },
+      { label: "Customer Support", value: "Customer Support" },
+    ],
+  },
+  { accessor: "email", label: "Email", width: 280, isSortable: true, isEditable: true, align: "left", type: "string" },
+  {
+    accessor: "location", label: "Location", width: 130, isSortable: true, isEditable: true, align: "left", type: "enum",
+    enumOptions: LOCATIONS.map((l) => ({ label: l, value: l })),
+  },
+  { accessor: "hireDate", label: "Hire Date", width: 120, isSortable: true, isEditable: true, align: "left", type: "date" },
+  { accessor: "yearsOfService", label: "Service", width: 100, isSortable: true, isEditable: false, align: "center", type: "number" },
+  { accessor: "salary", label: "Salary", width: 130, isSortable: true, isEditable: true, align: "right", type: "number", valueFormatter: ({ value }) => { if (typeof value !== "number") return ""; return `$${value.toLocaleString()}`; }, useFormattedValueForClipboard: true, useFormattedValueForCSV: true },
+  {
+    accessor: "status", label: "Status", width: 120, isSortable: true, isEditable: true, align: "center", pinned: "right", type: "enum",
+    enumOptions: [
+      { label: "Active", value: "Active" }, { label: "On Leave", value: "On Leave" },
+      { label: "Probation", value: "Probation" }, { label: "Contract", value: "Contract" },
+      { label: "Terminated", value: "Terminated" },
+    ],
+    valueGetter: ({ row }) => {
+      const priorityMap: Record<string, number> = { Terminated: 1, Probation: 2, Contract: 3, "On Leave": 4, Active: 5 };
+      return priorityMap[String(row.status)] || 999;
+    },
+  },
+  { accessor: "isRemoteEligible", label: "Remote Eligible", width: 140, isSortable: true, isEditable: true, align: "center", type: "boolean" },
+];
+
+export function getHRThemeColors(theme?: string) {
+  const isDark = theme === "dark" || theme === "modern-dark";
+  const tagColors: Record<HRTagColorKey, { bg: string; text: string }> = isDark
+    ? { green: { bg: "#065f46", text: "#86efac" }, orange: { bg: "#9a3412", text: "#fed7aa" }, blue: { bg: "#1e3a8a", text: "#93c5fd" }, purple: { bg: "#581c87", text: "#c4b5fd" }, red: { bg: "#991b1b", text: "#fca5a5" }, default: { bg: "#374151", text: "#e5e7eb" } }
+    : { green: { bg: "#f6ffed", text: "#2a6a0d" }, orange: { bg: "#fff7e6", text: "#ad4e00" }, blue: { bg: "#e6f7ff", text: "#0050b3" }, purple: { bg: "#f9f0ff", text: "#391085" }, red: { bg: "#fff1f0", text: "#a8071a" }, default: { bg: "#f0f0f0", text: "rgba(0, 0, 0, 0.85)" } };
+  return {
+    gray: isDark ? "#f3f4f6" : "#1f2937",
+    grayMuted: isDark ? "#f3f4f6" : "#6b7280",
+    avatarBg: isDark ? "#3b82f6" : "#1890ff",
+    avatarText: "#ffffff",
+    progressSuccess: isDark ? "#34d399" : "#52c41a",
+    progressNormal: isDark ? "#60a5fa" : "#1890ff",
+    progressException: isDark ? "#f87171" : "#ff4d4f",
+    progressBg: isDark ? "#374151" : "#f5f5f5",
+    progressText: isDark ? "#d1d5db" : "rgba(0, 0, 0, 0.65)",
+    tagColors,
+  };
+}
+
+export type HRTagColorKey = "green" | "orange" | "blue" | "purple" | "red" | "default";
+
+export const HR_STATUS_COLOR_MAP: Record<string, HRTagColorKey> = {
+  Active: "green", "On Leave": "orange", Probation: "blue", Contract: "purple", Terminated: "red",
+};
+
+export const hrConfig = {
+  headers: hrHeaders,
+  rows: hrData,
+} as const;

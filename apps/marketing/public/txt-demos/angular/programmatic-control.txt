@@ -1,0 +1,150 @@
+// programmatic-control-demo.component.ts
+import { Component, Input, ViewChild } from "@angular/core";
+import {SimpleTableComponent} from "@simple-table/angular";import type { AngularHeaderObject, Row, Theme } from "@simple-table/angular";
+import { programmaticControlConfig, PROGRAMMATIC_CONTROL_STATUS_COLORS } from "./programmatic-control.demo-data";
+import "@simple-table/angular/styles.css";
+
+@Component({
+  selector: "programmatic-control-demo",
+  standalone: true,
+  imports: [SimpleTableComponent],
+  template: `
+    <div>
+      <div style="margin-bottom: 12px; padding: 8px 12px; background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; color: #1e40af; font-size: 14px">
+        {{ statusMessage }}
+      </div>
+      <div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap">
+        <button (click)="sortByName()">Sort by Name (A-Z)</button>
+        <button (click)="sortByPrice()">Sort by Price (High to Low)</button>
+        <button (click)="filterAvailable()">Filter: Available</button>
+        <button (click)="clearFilters()">Clear Filters</button>
+        <button (click)="getInfo()">Get Table Info</button>
+      </div>
+      <simple-table
+        #simpleTable
+        [rows]="rows"
+        [defaultHeaders]="headers"
+        [height]="height"
+        [theme]="theme"
+      ></simple-table>
+    </div>
+  `,
+})
+export class ProgrammaticControlDemoComponent {
+  @ViewChild("simpleTable") tableRef!: SimpleTableComponent;
+  @Input() height: string | number = "400px";
+  @Input() theme?: Theme;
+
+  statusMessage = "No status message";
+  readonly rows: Row[] = programmaticControlConfig.rows;
+  readonly headers: AngularHeaderObject[] = programmaticControlConfig.headers.map((h) => {
+    if (h.accessor === "status") {
+      return {
+        ...h,
+        cellRenderer: ({ row }: { row: Record<string, unknown> }) => {
+          const s = String(row.status);
+          const colors = PROGRAMMATIC_CONTROL_STATUS_COLORS[s] ?? { bg: "#f3f4f6", color: "#374151" };
+          return `<span style="background:${colors.bg};color:${colors.color};padding:4px 8px;border-radius:4px;font-size:12px;font-weight:bold">${s}</span>`;
+        },
+      };
+    }
+    return { ...h };
+  });
+
+  sortByName(): void {
+    this.tableRef.getAPI()?.applySortState({ accessor: "name", direction: "asc" });
+    this.statusMessage = "Sorted by Name (A-Z)";
+  }
+
+  sortByPrice(): void {
+    this.tableRef.getAPI()?.applySortState({ accessor: "price", direction: "desc" });
+    this.statusMessage = "Sorted by Price (High to Low)";
+  }
+
+  filterAvailable(): void {
+    this.tableRef.getAPI()?.applyFilter({ accessor: "status", operator: "equals", value: "Available" });
+    this.statusMessage = "Filtered to show only Available products";
+  }
+
+  clearFilters(): void {
+    this.tableRef.getAPI()?.clearAllFilters();
+    this.statusMessage = "All filters cleared";
+  }
+
+  getInfo(): void {
+    const api = this.tableRef.getAPI();
+    if (!api) return;
+    const allRows = api.getAllRows();
+    const hdrs = api.getHeaders();
+    const sortState = api.getSortState();
+    const filterState = api.getFilterState();
+    const totalValue = allRows.reduce((sum, r) => {
+      const data = r.row as { price?: number; stock?: number };
+      return sum + (Number(data.price) || 0) * (Number(data.stock) || 0);
+    }, 0);
+    const sortInfo = sortState ? `${sortState.key.label} (${sortState.direction})` : "None";
+    alert(
+      `Table Info:\n• Rows: ${allRows.length}\n• Columns: ${hdrs.length}\n• Active filters: ${Object.keys(filterState).length}\n• Sort: ${sortInfo}\n• Total inventory value: $${totalValue.toFixed(2)}`,
+    );
+    this.statusMessage = "Table info displayed";
+  }
+}
+
+
+// programmatic-control.demo-data.ts
+// Self-contained demo table setup for this example.
+import type { AngularHeaderObject } from "@simple-table/angular";
+
+
+export const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  Available: { bg: "#dcfce7", color: "#166534" },
+  "Low Stock": { bg: "#fef3c7", color: "#92400e" },
+  "Out of Stock": { bg: "#fee2e2", color: "#991b1b" },
+};
+
+export const programmaticControlData = [
+  { id: 1, name: "Wireless Keyboard", category: "Electronics", price: 49.99, stock: 145, status: "Available" },
+  { id: 2, name: "Ergonomic Mouse", category: "Electronics", price: 29.99, stock: 12, status: "Low Stock" },
+  { id: 3, name: "USB-C Hub", category: "Electronics", price: 39.99, stock: 234, status: "Available" },
+  { id: 4, name: "Standing Desk", category: "Furniture", price: 399.99, stock: 0, status: "Out of Stock" },
+  { id: 5, name: "Office Chair", category: "Furniture", price: 249.99, stock: 56, status: "Available" },
+  { id: 6, name: "Monitor Stand", category: "Furniture", price: 79.99, stock: 8, status: "Low Stock" },
+  { id: 7, name: "Notebook Set", category: "Stationery", price: 12.99, stock: 445, status: "Available" },
+  { id: 8, name: "Pen Collection", category: "Stationery", price: 19.99, stock: 312, status: "Available" },
+  { id: 9, name: "Desk Organizer", category: "Stationery", price: 24.99, stock: 5, status: "Low Stock" },
+  { id: 10, name: "Coffee Maker", category: "Appliances", price: 89.99, stock: 78, status: "Available" },
+  { id: 11, name: "Electric Kettle", category: "Appliances", price: 34.99, stock: 134, status: "Available" },
+  { id: 12, name: "Desk Lamp LED", category: "Appliances", price: 44.99, stock: 0, status: "Out of Stock" },
+];
+
+export const programmaticControlHeaders: AngularHeaderObject[] = [
+  { accessor: "id", label: "ID", width: 70, type: "number", isSortable: true, filterable: true },
+  { accessor: "name", label: "Product Name", width: "1fr", minWidth: 150, type: "string", isSortable: true, filterable: true },
+  {
+    accessor: "category",
+    label: "Category",
+    width: 140,
+    type: "enum",
+    isSortable: true,
+    filterable: true,
+    enumOptions: ["Electronics", "Furniture", "Stationery", "Appliances"].map((v) => ({ label: v, value: v })),
+  },
+  { accessor: "price", label: "Price", width: 110, align: "right", type: "number", isSortable: true, filterable: true, valueFormatter: ({ value }) => `$${(value as number).toFixed(2)}` },
+  { accessor: "stock", label: "Stock", width: 100, align: "right", type: "number", isSortable: true, filterable: true },
+  {
+    accessor: "status",
+    label: "Status",
+    width: 110,
+    type: "enum",
+    isSortable: true,
+    filterable: true,
+    enumOptions: ["Available", "Low Stock", "Out of Stock"].map((v) => ({ label: v, value: v })),
+  },
+];
+
+export const programmaticControlConfig = {
+  headers: programmaticControlHeaders,
+  rows: programmaticControlData,
+} as const;
+
+export { STATUS_COLORS as PROGRAMMATIC_CONTROL_STATUS_COLORS };

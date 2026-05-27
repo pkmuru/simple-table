@@ -1,0 +1,370 @@
+// MusicArtistCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getMusicThemeColors } from "./music.demo-data";
+  import type { MusicArtist } from "./music.demo-data";
+  import MusicTag from "./MusicTag.svelte";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as MusicArtist);
+  const c = $derived(getMusicThemeColors(theme));
+
+  const avatarStyle = $derived.by(() => {
+    let hash = 0;
+    for (let i = 0; i < d.artistName.length; i++) {
+      hash = d.artistName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return `width:40px;height:40px;border-radius:50%;background-color:hsl(${hash % 360}, 65%, 55%);display:flex;align-items:center;justify-content:center;color:white;font-size:16px;flex-shrink:0;`;
+  });
+</script>
+
+<div style="display:flex;align-items:center;gap:12px;">
+  <div style={avatarStyle}>{d.artistName.charAt(0).toUpperCase()}</div>
+  <div style="display:flex;flex-direction:column;gap:6px;flex:1;">
+    <span style="font-weight:500;font-size:14px;color:{c.gray};">{d.artistName}</span>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <MusicTag text={d.growthStatus} variant="default" c={c} />
+      <MusicTag text={d.mood} variant="default" c={c} />
+      <MusicTag text={d.genre} variant="default" c={c} />
+    </div>
+  </div>
+</div>
+
+
+// MusicArtistTypeCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getMusicThemeColors } from "./music.demo-data";
+  import type { MusicArtist } from "./music.demo-data";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as MusicArtist);
+  const c = $derived(getMusicThemeColors(theme));
+</script>
+
+<div style="display:flex;flex-direction:column;gap:4px;">
+  <div style="font-size:13px;color:{c.gray};">{d.artistType}, {d.pronouns}</div>
+  <div style="font-size:12px;color:{c.gray};">{d.recordLabel}</div>
+  <div style="font-size:12px;color:{c.gray};">Lyrics Language: {d.lyricsLanguage}</div>
+</div>
+
+
+// MusicConversionRateCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getMusicThemeColors } from "./music.demo-data";
+  import type { MusicArtist } from "./music.demo-data";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as MusicArtist);
+  const c = $derived(getMusicThemeColors(theme));
+</script>
+
+<span style="color:{c.gray};">{d.conversionRate.toFixed(2)}%</span>
+
+
+// MusicDemo.svelte
+<script lang="ts">
+  import { SimpleTable } from "@simple-table/svelte";
+  import type { Theme, SvelteHeaderObject, CellRenderer } from "@simple-table/svelte";
+  import { musicData, musicHeaders } from "./music.demo-data";
+  import "@simple-table/svelte/styles.css";
+  import "./music-theme.css";
+  import MusicArtistCell from "./MusicArtistCell.svelte";
+  import MusicArtistTypeCell from "./MusicArtistTypeCell.svelte";
+  import MusicFollowersCell from "./MusicFollowersCell.svelte";
+  import MusicPlaylistReachCell from "./MusicPlaylistReachCell.svelte";
+  import MusicPlaylistCountCell from "./MusicPlaylistCountCell.svelte";
+  import MusicMonthlyListenersCell from "./MusicMonthlyListenersCell.svelte";
+  import MusicPopularityCell from "./MusicPopularityCell.svelte";
+  import MusicConversionRateCell from "./MusicConversionRateCell.svelte";
+  import MusicRatioCell from "./MusicRatioCell.svelte";
+  import MusicGrowthMetricCell from "./MusicGrowthMetricCell.svelte";
+
+  let { height = "400px", theme }: { height?: string | number; theme?: Theme } = $props();
+
+  const renderers: Record<string, unknown> = {
+    artistName: MusicArtistCell,
+    artistType: MusicArtistTypeCell,
+    followers: MusicFollowersCell,
+    followers7DayGrowth: MusicGrowthMetricCell,
+    followers28DayGrowth: MusicGrowthMetricCell,
+    followers60DayGrowth: MusicGrowthMetricCell,
+    popularity: MusicPopularityCell,
+    playlistReach: MusicPlaylistReachCell,
+    playlistReach7DayGrowth: MusicGrowthMetricCell,
+    playlistReach28DayGrowth: MusicGrowthMetricCell,
+    playlistReach60DayGrowth: MusicGrowthMetricCell,
+    playlistCount: MusicPlaylistCountCell,
+    playlistCount7DayGrowth: MusicGrowthMetricCell,
+    playlistCount28DayGrowth: MusicGrowthMetricCell,
+    playlistCount60DayGrowth: MusicGrowthMetricCell,
+    monthlyListeners: MusicMonthlyListenersCell,
+    monthlyListeners7DayGrowth: MusicGrowthMetricCell,
+    monthlyListeners28DayGrowth: MusicGrowthMetricCell,
+    monthlyListeners60DayGrowth: MusicGrowthMetricCell,
+    conversionRate: MusicConversionRateCell,
+    reachFollowersRatio: MusicRatioCell,
+  };
+
+  function applyMusicCellRenderers(hdrs: SvelteHeaderObject[]): SvelteHeaderObject[] {
+    return hdrs.map((h) => {
+      const acc = String(h.accessor);
+      const next: SvelteHeaderObject = { ...h };
+      if (acc === "rank") next.pinned = "left";
+      if (acc === "artistName") next.pinned = "left";
+      const R = renderers[acc];
+      if (R) next.cellRenderer = R as CellRenderer;
+      if (h.children) next.children = applyMusicCellRenderers(h.children as SvelteHeaderObject[]);
+      return next;
+    });
+  }
+
+  const headers = $derived(
+    applyMusicCellRenderers(JSON.parse(JSON.stringify(musicHeaders)) as SvelteHeaderObject[]),
+  );
+</script>
+
+<div class="music-theme-container" style="font-family: Inter">
+  <SimpleTable
+    defaultHeaders={headers}
+    rows={[...musicData]}
+    {height}
+    {theme}
+    selectableCells={true}
+    columnReordering={true}
+    columnResizing={true}
+    customTheme={{ headerHeight: 30, rowHeight: 85 }}
+  />
+</div>
+
+
+// MusicFollowersCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getMusicThemeColors } from "./music.demo-data";
+  import type { MusicArtist } from "./music.demo-data";
+  import MusicTag from "./MusicTag.svelte";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as MusicArtist);
+  const c = $derived(getMusicThemeColors(theme));
+  const tagText = $derived(
+    `↑ +${d.followersGrowthFormatted} (${d.followersGrowthPercent.toFixed(2)}%)`,
+  );
+</script>
+
+<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">
+  <div style="font-size:14px;color:{c.gray};">{d.followersFormatted}</div>
+  <MusicTag text={tagText} variant="green" c={c} />
+</div>
+
+
+// MusicGrowthMetricCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getMusicThemeColors } from "./music.demo-data";
+  import type { MusicArtist } from "./music.demo-data";
+  import MusicTag from "./MusicTag.svelte";
+
+  const CONFIG: Record<
+    string,
+    { val: keyof MusicArtist; pct: keyof MusicArtist; signed: boolean; align: "left" | "right" }
+  > = {
+    followers7DayGrowth: { val: "followers7DayGrowth", pct: "followers7DayGrowthPercent", signed: false, align: "right" },
+    followers28DayGrowth: { val: "followers28DayGrowth", pct: "followers28DayGrowthPercent", signed: false, align: "right" },
+    followers60DayGrowth: { val: "followers60DayGrowth", pct: "followers60DayGrowthPercent", signed: false, align: "right" },
+    playlistReach7DayGrowth: { val: "playlistReach7DayGrowth", pct: "playlistReach7DayGrowthPercent", signed: true, align: "right" },
+    playlistReach28DayGrowth: { val: "playlistReach28DayGrowth", pct: "playlistReach28DayGrowthPercent", signed: true, align: "right" },
+    playlistReach60DayGrowth: { val: "playlistReach60DayGrowth", pct: "playlistReach60DayGrowthPercent", signed: true, align: "right" },
+    playlistCount7DayGrowth: { val: "playlistCount7DayGrowth", pct: "playlistCount7DayGrowthPercent", signed: false, align: "right" },
+    playlistCount28DayGrowth: { val: "playlistCount28DayGrowth", pct: "playlistCount28DayGrowthPercent", signed: false, align: "right" },
+    playlistCount60DayGrowth: { val: "playlistCount60DayGrowth", pct: "playlistCount60DayGrowthPercent", signed: false, align: "right" },
+    monthlyListeners7DayGrowth: { val: "monthlyListeners7DayGrowth", pct: "monthlyListeners7DayGrowthPercent", signed: true, align: "right" },
+    monthlyListeners28DayGrowth: { val: "monthlyListeners28DayGrowth", pct: "monthlyListeners28DayGrowthPercent", signed: true, align: "right" },
+    monthlyListeners60DayGrowth: { val: "monthlyListeners60DayGrowth", pct: "monthlyListeners60DayGrowthPercent", signed: true, align: "right" },
+  };
+
+  let { row, accessor, theme }: CellRendererProps = $props();
+  const cfg = $derived(CONFIG[String(accessor)] ?? null);
+  const r = $derived(row as unknown as MusicArtist);
+  const c = $derived(getMusicThemeColors(theme));
+
+  const view = $derived.by(() => {
+    if (!cfg) return null;
+    const val = Number(r[cfg.val]);
+    const pct = Number(r[cfg.pct]);
+    const isPositive = cfg.signed ? val >= 0 : true;
+    const showSign = true;
+    const displayVal = Number.isFinite(val) ? val.toLocaleString() : String(r[cfg.val]);
+    const prefix = showSign ? (isPositive ? "+" : "") : "";
+    const arrow = isPositive ? "↑" : "↓";
+    const tagText = `${arrow} ${Math.abs(pct).toFixed(2)}%`;
+    return {
+      line: `${prefix}${displayVal}`,
+      tagText,
+      variant: isPositive ? ("green" as const) : ("red" as const),
+      align: cfg.align,
+    };
+  });
+</script>
+
+{#if view}
+  <div
+    style="display:flex;flex-direction:column;gap:4px;align-items:{view.align === 'right'
+      ? 'flex-end'
+      : 'flex-start'};"
+  >
+    <span style="font-size:14px;color:{c.gray};">{view.line}</span>
+    <MusicTag text={view.tagText} variant={view.variant} c={c} />
+  </div>
+{/if}
+
+
+// MusicMonthlyListenersCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getMusicThemeColors } from "./music.demo-data";
+  import type { MusicArtist } from "./music.demo-data";
+  import MusicTag from "./MusicTag.svelte";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as MusicArtist);
+  const c = $derived(getMusicThemeColors(theme));
+  const isPos = $derived(d.monthlyListenersChange >= 0);
+  const pct = $derived(Math.abs(d.monthlyListenersChangePercent).toFixed(2));
+  const tagText = $derived(
+    `${isPos ? "↑" : "↓"} ${isPos ? "+" : ""}${d.monthlyListenersChangeFormatted} (${pct}%)`,
+  );
+</script>
+
+<div style="display:flex;flex-direction:column;gap:4px;">
+  <div style="font-size:14px;color:{c.gray};">{d.monthlyListenersFormatted}</div>
+  <MusicTag text={tagText} variant={isPos ? "green" : "red"} c={c} />
+</div>
+
+
+// MusicPlaylistCountCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getMusicThemeColors } from "./music.demo-data";
+  import type { MusicArtist } from "./music.demo-data";
+  import MusicTag from "./MusicTag.svelte";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as MusicArtist);
+  const c = $derived(getMusicThemeColors(theme));
+  const tagText = $derived(
+    `↑ +${d.playlistCountGrowth} (${d.playlistCountGrowthPercent.toFixed(2)}%)`,
+  );
+</script>
+
+<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">
+  <div style="font-size:14px;color:{c.gray};">{d.playlistCount.toLocaleString()}</div>
+  <MusicTag text={tagText} variant="green" c={c} />
+</div>
+
+
+// MusicPlaylistReachCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getMusicThemeColors } from "./music.demo-data";
+  import type { MusicArtist } from "./music.demo-data";
+  import MusicTag from "./MusicTag.svelte";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as MusicArtist);
+  const c = $derived(getMusicThemeColors(theme));
+  const isPos = $derived(d.playlistReachChange >= 0);
+  const pct = $derived(Math.abs(d.playlistReachChangePercent).toFixed(2));
+  const tagText = $derived(
+    `${isPos ? "↑" : "↓"} ${isPos ? "+" : ""}${d.playlistReachChangeFormatted} (${pct}%)`,
+  );
+</script>
+
+<div style="display:flex;flex-direction:column;gap:4px;">
+  <div style="font-size:14px;color:{c.gray};">{d.playlistReachFormatted}</div>
+  <MusicTag text={tagText} variant={isPos ? "green" : "red"} c={c} />
+</div>
+
+
+// MusicPopularityCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getMusicThemeColors } from "./music.demo-data";
+  import type { MusicArtist } from "./music.demo-data";
+  import MusicTag from "./MusicTag.svelte";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as MusicArtist);
+  const c = $derived(getMusicThemeColors(theme));
+  const isPos = $derived(d.popularityChangePercent >= 0);
+  const arrow = $derived(isPos ? "↑" : "↓");
+  const tagText = $derived(`${arrow} ${Math.abs(d.popularityChangePercent).toFixed(2)}%`);
+</script>
+
+<div style="display:flex;justify-content:center;">
+  <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+    <span style="font-size:14px;color:{c.gray};">{d.popularity}/100</span>
+    <MusicTag text={tagText} variant={isPos ? "green" : "red"} c={c} />
+  </div>
+</div>
+
+
+// MusicRatioCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getMusicThemeColors } from "./music.demo-data";
+  import type { MusicArtist } from "./music.demo-data";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as MusicArtist);
+  const c = $derived(getMusicThemeColors(theme));
+</script>
+
+<span style="color:{c.gray};">{d.reachFollowersRatio.toFixed(1)}x</span>
+
+
+// MusicTag.svelte
+<script lang="ts">
+  let {
+    text,
+    variant,
+    c,
+  }: {
+    text: string;
+    variant: "green" | "red" | "default";
+    c: Record<string, string>;
+  } = $props();
+
+  const s = $derived.by(() => {
+    const colorMap: Record<string, { bg: string; text: string; border?: string }> = {
+      green: { bg: c.successBg, text: c.success },
+      red: { bg: c.errorBg, text: c.error },
+      default: { bg: c.tagBg, text: c.tagText, border: `1px solid ${c.tagBorder}` },
+    };
+    return colorMap[variant] || colorMap.default;
+  });
+</script>
+
+<span
+  style="background-color:{s.bg};color:{s.text};padding:0 7px;font-size:11px;line-height:20px;border-radius:4px;display:inline-block;{s.border
+    ? `border:${s.border};`
+    : ''}"
+>{text}</span>
+
+
+// music-theme.css
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+.music-theme-container * {
+  font-family: "Inter";
+}
+
+.music-theme-container .st-header-label-text {
+  font-weight: 500;
+  font-size: 12px;
+}
+.music-theme-container .st-cell-content {
+  font-size: 12px;
+}

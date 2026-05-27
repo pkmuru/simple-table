@@ -1,0 +1,797 @@
+// CRMDemo.vue
+<script setup lang="ts">
+import { ref, computed, h, defineComponent } from "vue";
+import type { Component } from "vue";
+import { SimpleTable } from "@simple-table/vue";
+import type { VueHeaderObject, CellChangeProps, CellRendererProps, FooterRendererProps } from "@simple-table/vue";
+import {
+  crmData,
+  CRM_THEME_COLORS_LIGHT,
+  CRM_THEME_COLORS_DARK,
+  CRM_FOOTER_COLORS_LIGHT,
+  CRM_FOOTER_COLORS_DARK,
+  generateVisiblePages,
+} from "./crm.demo-data";
+import type { CRMLead, CrmShellTheme } from "./crm.demo-data";
+import CrmEmailEnrich from "./CrmEmailEnrich.vue";
+import CrmFitButtons from "./CrmFitButtons.vue";
+import "@simple-table/vue/styles.css";
+import "./crm-custom-theme.css";
+
+const props = withDefaults(defineProps<{ height?: string | number; theme?: CrmShellTheme }>(), {
+  height: "400px",
+});
+
+const isDark = computed(
+  () =>
+    props.theme === "custom-dark" ||
+    props.theme === "dark" ||
+    props.theme === "modern-dark",
+);
+const data = ref([...crmData]);
+const rowsPerPage = ref(100);
+
+type CrmColors = typeof CRM_THEME_COLORS_LIGHT;
+
+function makeContactCell(colors: CrmColors): Component {
+  return defineComponent({
+    name: "CrmContactCell",
+    setup(raw) {
+      return () => {
+        const p = raw as unknown as CellRendererProps;
+        const d = p.row as unknown as CRMLead;
+        const initials = d.name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase();
+        return h("div", { style: { display: "flex", alignItems: "center", gap: "12px" } }, [
+          h(
+            "div",
+            {
+              style: {
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                background: "linear-gradient(to right, oklch(75% .183 55.934), oklch(70.4% .191 22.216))",
+                color: "white",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "12px",
+                fontWeight: "600",
+                flexShrink: "0",
+              },
+            },
+            initials,
+          ),
+          h("div", { style: { display: "flex", flexDirection: "column", gap: "2px" } }, [
+            h(
+              "span",
+              {
+                style: {
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: colors.link,
+                },
+              },
+              d.name,
+            ),
+            h("div", { style: { fontSize: "12px", color: colors.textSecondary } }, d.title),
+            h("div", { style: { fontSize: "12px", color: colors.textSecondary } }, [
+              h("span", { style: { fontSize: "12px", color: colors.textTertiary } }, "@"),
+              ` ${d.company}`,
+            ]),
+          ]),
+        ]);
+      };
+    },
+  });
+}
+
+function makeSignalCell(colors: CrmColors): Component {
+  return defineComponent({
+    name: "CrmSignalCell",
+    setup(raw) {
+      return () => {
+        const p = raw as unknown as CellRendererProps;
+        const d = p.row as unknown as CRMLead;
+        return h("div", [
+          h("div", { style: { color: colors.textSecondary, marginBottom: "4px", fontSize: "0.875rem" } }, [
+            "🧠 Just engaged with a ",
+            h(
+              "a",
+              {
+                href: "#",
+                style: { color: "#0077b5", textDecoration: "underline", cursor: "pointer" },
+                onClick: (e: MouseEvent) => e.preventDefault(),
+              },
+              "post",
+            ),
+          ]),
+          h("div", { style: { fontSize: "12px", color: colors.textTertiary } }, [
+            h("span", { style: { fontWeight: "600" } }, "Keyword:"),
+            ` ${d.signal}`,
+          ]),
+        ]);
+      };
+    },
+  });
+}
+
+function makeAiScoreCell(): Component {
+  return defineComponent({
+    name: "CrmAiScoreCell",
+    setup(raw) {
+      return () => {
+        const p = raw as unknown as CellRendererProps;
+        const d = p.row as unknown as CRMLead;
+        return h("div", { style: { fontSize: "0.875rem" } }, "🔥".repeat(d.aiScore));
+      };
+    },
+  });
+}
+
+function makeEmailCell(colors: CrmColors): Component {
+  return defineComponent({
+    name: "CrmEmailCell",
+    setup() {
+      return () => h(CrmEmailEnrich, { colors });
+    },
+  });
+}
+
+function makeTimeAgoCell(colors: CrmColors): Component {
+  return defineComponent({
+    name: "CrmTimeAgoCell",
+    setup(raw) {
+      return () => {
+        const p = raw as unknown as CellRendererProps;
+        const d = p.row as unknown as CRMLead;
+        return h("div", { style: { fontSize: "13px", color: colors.textSecondary } }, d.timeAgo);
+      };
+    },
+  });
+}
+
+function makeListCell(colors: CrmColors): Component {
+  return defineComponent({
+    name: "CrmListCell",
+    setup(raw) {
+      return () => {
+        const p = raw as unknown as CellRendererProps;
+        const d = p.row as unknown as CRMLead;
+        return h(
+          "a",
+          {
+            href: "#",
+            style: {
+              cursor: "pointer",
+              fontSize: "0.875rem",
+              color: colors.link,
+              textDecoration: "none",
+              fontWeight: "600",
+            },
+            onClick: (e: MouseEvent) => e.preventDefault(),
+          },
+          d.list,
+        );
+      };
+    },
+  });
+}
+
+function makeFitCell(colors: CrmColors): Component {
+  return defineComponent({
+    name: "CrmFitCell",
+    setup() {
+      return () => h(CrmFitButtons, { colors });
+    },
+  });
+}
+
+function makeContactNowCell(colors: CrmColors): Component {
+  return defineComponent({
+    name: "CrmContactNowCell",
+    setup() {
+      return () =>
+        h(
+          "a",
+          {
+            href: "#",
+            style: {
+              cursor: "pointer",
+              fontSize: "0.875rem",
+              color: colors.link,
+              textDecoration: "none",
+              fontWeight: "600",
+            },
+            onClick: (e: MouseEvent) => e.preventDefault(),
+          },
+          "Contact Now",
+        );
+    },
+  });
+}
+
+const CrmFooter = defineComponent({
+  name: "CrmFooter",
+  props: {
+    currentPage: { type: Number, required: true },
+    endRow: { type: Number, required: true },
+    hasNextPage: { type: Boolean, required: true },
+    hasPrevPage: { type: Boolean, required: true },
+    onNextPage: { type: Function, required: true },
+    onPageChange: { type: Function, required: true },
+    onPrevPage: { type: Function, required: true },
+    rowsPerPage: { type: Number, required: true },
+    startRow: { type: Number, required: true },
+    totalPages: { type: Number, required: true },
+    totalRows: { type: Number, required: true },
+  },
+  setup(footerProps) {
+    return () => {
+      const c = isDark.value ? CRM_FOOTER_COLORS_DARK : CRM_FOOTER_COLORS_LIGHT;
+      const fp = footerProps as unknown as FooterRendererProps;
+      const visiblePages = generateVisiblePages(fp.currentPage, fp.totalPages);
+
+      const makePageBtn = (
+        label: string,
+        onClick: () => void,
+        disabled: boolean,
+        active: boolean,
+        extraStyle?: Record<string, string>,
+      ) =>
+        h("button", {
+          type: "button",
+          disabled,
+          style: {
+            display: "inline-flex",
+            alignItems: "center",
+            padding: label.length > 1 ? "8px 16px" : "8px",
+            border: `1px solid ${c.buttonBorder}`,
+            backgroundColor: active ? c.activeBg : c.buttonBg,
+            fontSize: "14px",
+            fontWeight: "500",
+            color: active ? c.activeText : disabled ? c.buttonText : c.text,
+            cursor: disabled ? "not-allowed" : "pointer",
+            opacity: disabled ? "0.5" : "1",
+            ...extraStyle,
+          },
+          onClick: disabled ? undefined : onClick,
+        }, label);
+
+      const perPageOptions = [25, 50, 100, 200, 10000] as const;
+
+      return h(
+        "div",
+        {
+          style: {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 16px",
+            borderTop: `1px solid ${c.border}`,
+            backgroundColor: c.bg,
+          },
+        },
+        [
+          h("p", { style: { fontSize: "14px", color: c.text, margin: "0" } }, [
+            "Showing ",
+            h("span", { style: { fontWeight: "500" } }, String(fp.startRow)),
+            " to ",
+            h("span", { style: { fontWeight: "500" } }, String(fp.endRow)),
+            " of ",
+            h("span", { style: { fontWeight: "500" } }, String(fp.totalRows)),
+            " results",
+          ]),
+          h("div", { style: { display: "flex", alignItems: "center", gap: "16px" } }, [
+            h("div", { style: { display: "flex", alignItems: "center", gap: "8px" } }, [
+              h("label", { style: { fontSize: "14px", color: c.text } }, "Show:"),
+              h(
+                "select",
+                {
+                  style: {
+                    border: `1px solid ${c.inputBorder}`,
+                    borderRadius: "6px",
+                    padding: "4px 8px",
+                    fontSize: "14px",
+                    backgroundColor: c.inputBg,
+                    color: c.text,
+                    cursor: "pointer",
+                  },
+                  value: rowsPerPage.value,
+                  onChange: (e: Event) => {
+                    const v = parseInt((e.target as HTMLSelectElement).value, 10);
+                    rowsPerPage.value = v;
+                    fp.onPageChange(1);
+                  },
+                },
+                perPageOptions.map((opt) =>
+                  h("option", { value: String(opt) }, opt === 10000 ? "all" : String(opt)),
+                ),
+              ),
+              h("span", { style: { fontSize: "14px", color: c.text } }, "per page"),
+            ]),
+            h(
+              "nav",
+              {
+                style: {
+                  display: "inline-flex",
+                  borderRadius: "6px",
+                  boxShadow: "0 1px 2px 0 rgba(0,0,0,0.05)",
+                },
+              },
+              [
+                makePageBtn("‹", () => fp.onPrevPage(), !fp.hasPrevPage, false, {
+                  borderTopLeftRadius: "6px",
+                  borderBottomLeftRadius: "6px",
+                }),
+                ...visiblePages.map((page, idx) =>
+                  makePageBtn(String(page), () => fp.onPageChange(page), false, page === fp.currentPage, {
+                    padding: "8px 16px",
+                    marginLeft: idx === 0 ? "0" : "-1px",
+                  }),
+                ),
+                makePageBtn("›", () => void fp.onNextPage(), !fp.hasNextPage, false, {
+                  borderTopRightRadius: "6px",
+                  borderBottomRightRadius: "6px",
+                  marginLeft: "-1px",
+                }),
+              ],
+            ),
+          ]),
+        ],
+      );
+    };
+  },
+});
+
+const headers = computed((): VueHeaderObject[] => {
+  const colors = isDark.value ? CRM_THEME_COLORS_DARK : CRM_THEME_COLORS_LIGHT;
+
+  return [
+    {
+      accessor: "name",
+      label: "CONTACT",
+      width: "2fr",
+      minWidth: 290,
+      isSortable: true,
+      isEditable: true,
+      type: "string",
+      cellRenderer: makeContactCell(colors),
+    },
+    {
+      accessor: "signal",
+      label: "SIGNAL",
+      width: "3fr",
+      minWidth: 340,
+      isSortable: true,
+      isEditable: true,
+      type: "string",
+      cellRenderer: makeSignalCell(colors),
+    },
+    {
+      accessor: "aiScore",
+      label: "AI SCORE",
+      width: "1fr",
+      minWidth: 100,
+      isSortable: true,
+      align: "center",
+      type: "number",
+      cellRenderer: makeAiScoreCell(),
+    },
+    {
+      accessor: "emailStatus",
+      label: "EMAIL",
+      width: "1.5fr",
+      minWidth: 210,
+      isSortable: true,
+      align: "center",
+      type: "enum",
+      enumOptions: [
+        { label: "Enrich", value: "Enrich" },
+        { label: "Verified", value: "Verified" },
+        { label: "Pending", value: "Pending" },
+        { label: "Bounced", value: "Bounced" },
+      ],
+      cellRenderer: makeEmailCell(colors),
+    },
+    {
+      accessor: "timeAgo",
+      label: "IMPORT",
+      width: "1fr",
+      minWidth: 100,
+      isSortable: true,
+      align: "center",
+      type: "string",
+      cellRenderer: makeTimeAgoCell(colors),
+    },
+    {
+      accessor: "list",
+      label: "LIST",
+      width: "1.2fr",
+      minWidth: 160,
+      isSortable: true,
+      align: "center",
+      type: "enum",
+      enumOptions: [
+        { label: "Leads", value: "Leads" },
+        { label: "Hot Leads", value: "Hot Leads" },
+        { label: "Warm Leads", value: "Warm Leads" },
+        { label: "Cold Leads", value: "Cold Leads" },
+        { label: "Enterprise", value: "Enterprise" },
+        { label: "SMB", value: "SMB" },
+        { label: "Nurture", value: "Nurture" },
+      ],
+      valueGetter: ({ row }) => {
+        const list = String(row.list);
+        const m: Record<string, number> = {
+          "Hot Leads": 1,
+          "Warm Leads": 2,
+          Enterprise: 3,
+          Leads: 4,
+          SMB: 5,
+          "Cold Leads": 6,
+          Nurture: 7,
+        };
+        return m[list] || 999;
+      },
+      cellRenderer: makeListCell(colors),
+    },
+    { accessor: "_fit", label: "Fit", width: "1fr", align: "center", minWidth: 120, cellRenderer: makeFitCell(colors) },
+    {
+      accessor: "_contactNow",
+      label: "",
+      width: "1.2fr",
+      minWidth: 160,
+      cellRenderer: makeContactNowCell(colors),
+    },
+  ];
+});
+
+const handleCellEdit = ({ accessor, newValue, row }: CellChangeProps) => {
+  data.value = data.value.map((item) =>
+    item.id === row.id ? { ...item, [accessor]: newValue } : item,
+  );
+};
+</script>
+
+<template>
+  <div :class="`custom-theme-container theme-${isDark ? 'custom-dark' : 'custom-light'}`">
+    <SimpleTable
+      :default-headers="headers"
+      :rows="data"
+      :height="height"
+      theme="custom"
+      :column-reordering="true"
+      :column-resizing="true"
+      :enable-row-selection="true"
+      :should-paginate="true"
+      :rows-per-page="rowsPerPage"
+      :custom-theme="{ headerHeight: 48, rowHeight: 92 }"
+      :footer-renderer="CrmFooter"
+      @cell-edit="handleCellEdit"
+    />
+  </div>
+</template>
+
+
+// CrmEmailEnrich.vue
+<script setup lang="ts">
+import { ref } from "vue";
+type CrmColors = typeof import("./crm.demo-data").CRM_THEME_COLORS_LIGHT;
+
+const props = defineProps<{ colors: CrmColors }>();
+
+const isLoading = ref(false);
+const email = ref<string | null>(null);
+
+function handleClick() {
+  if (isLoading.value || email.value) return;
+  isLoading.value = true;
+  const domains = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "company.com"];
+  const names = ["john", "jane", "mike", "sarah", "david", "lisa", "chris", "emma"];
+  setTimeout(() => {
+    email.value = `${names[Math.floor(Math.random() * names.length)]}${Math.floor(Math.random() * 999) + 1}@${domains[Math.floor(Math.random() * domains.length)]}`;
+    isLoading.value = false;
+  }, 2000);
+}
+</script>
+
+<template>
+  <span
+    v-if="email"
+    style="
+      margin-right: 8px;
+      display: inline-flex;
+      cursor: default;
+      align-items: center;
+      column-gap: 6px;
+      border-radius: 9999px;
+      background-color: var(--crm-tag-bg, transparent);
+      padding-inline: 8px;
+      padding-block: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    "
+    :style="{ backgroundColor: colors.tagBg, color: colors.tagText }"
+  >
+    {{ email }}
+  </span>
+  <span
+    v-else-if="isLoading"
+    style="
+      margin-right: 8px;
+      display: inline-flex;
+      cursor: default;
+      align-items: center;
+      column-gap: 6px;
+      border-radius: 9999px;
+      padding-inline: 8px;
+      padding-block: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    "
+    :style="{ backgroundColor: colors.tagBg, color: colors.tagText }"
+  >
+    <div
+      :style="{
+        width: '12px',
+        height: '12px',
+        border: `2px solid ${colors.buttonHoverBg}`,
+        borderTop: `2px solid ${colors.accent}`,
+        borderRadius: '50%',
+        animation: 'spin 1s linear infinite',
+      }"
+    />
+    Enriching...
+  </span>
+  <span
+    v-else
+    style="
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      column-gap: 6px;
+      border-radius: 9999px;
+      padding-inline: 8px;
+      padding-block: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      background-color: color-mix(in oklab, oklch(62.3% 0.214 259.815) 10%, transparent);
+    "
+    :style="{ color: colors.tagText }"
+    @click="handleClick"
+  >
+    Enrich
+  </span>
+</template>
+
+
+// CrmFitButtons.vue
+<script setup lang="ts">
+import { ref } from "vue";
+type CrmColors = typeof import("./crm.demo-data").CRM_THEME_COLORS_LIGHT;
+
+const props = defineProps<{ colors: CrmColors }>();
+
+const selected = ref<string | null>(null);
+
+const btnStyle = {
+  flex: 1,
+  padding: "4px 8px",
+  fontSize: "0.75rem",
+  fontWeight: "500",
+  border: "none",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  transition: "background-color 0.2s",
+} as const;
+</script>
+
+<template>
+  <div style="display: flex; align-items: center">
+    <button
+      :style="{
+        ...btnStyle,
+        color: props.colors.buttonText,
+        backgroundColor: selected === 'fit' ? 'oklch(62.7% 0.194 149.214)' : 'oklch(92.5% 0.084 155.995)',
+        borderTopLeftRadius: '6px',
+        borderBottomLeftRadius: '6px',
+      }"
+      @click="selected = selected === 'fit' ? null : 'fit'"
+    >
+      ✓
+    </button>
+    <button
+      :style="{
+        ...btnStyle,
+        color: props.colors.buttonText,
+        backgroundColor: selected === 'partial' ? props.colors.buttonHoverBg : props.colors.buttonBg,
+      }"
+      @click="selected = selected === 'partial' ? null : 'partial'"
+    >
+      ?
+    </button>
+    <button
+      :style="{
+        ...btnStyle,
+        color: props.colors.buttonText,
+        backgroundColor: selected === 'no' ? 'oklch(64.6% 0.222 41.116)' : 'oklch(90.1% 0.076 70.697)',
+        borderTopRightRadius: '6px',
+        borderBottomRightRadius: '6px',
+      }"
+      @click="selected = selected === 'no' ? null : 'no'"
+    >
+      X
+    </button>
+  </div>
+</template>
+
+
+// crm-custom-theme.css
+@import url("https://fonts.googleapis.com/css2?family=BBH+Sans+Hegarty&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap");
+
+.custom-theme-container .st-wrapper {
+  border-radius: 0;
+}
+.custom-theme-container .st-header-label-text {
+  font-size: 12px;
+}
+
+.custom-theme-container * {
+  font-family: Plus Jakarta Sans, sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+.custom-theme-container .st-header-resize-handle {
+  height: 100%;
+  width: 4px;
+}
+.custom-theme-container.theme-custom-light .theme-custom {
+  --st-border-radius: 4px;
+  --st-cell-padding: 12px;
+  --st-spacing-small: 6px;
+  --st-spacing-medium: 10px;
+  --st-scrollbar-bg-color: #f1f5f9;
+  --st-scrollbar-thumb-color: #cbd5e1;
+  --st-border-color: none;
+  --st-odd-row-background-color: white;
+  --st-even-row-background-color: white;
+  --st-odd-column-background-color: white;
+  --st-even-column-background-color: oklch(98.5% 0.002 247.839);
+  --st-hover-row-background-color: oklch(96.7% 0.003 264.542);
+  --st-selected-row-background-color: oklch(96.7% 0.003 264.542);
+  --st-header-background-color: rgb(249 250 251);
+  --st-header-label-color: oklch(55.1% 0.027 264.364);
+  --st-header-icon-color: oklch(55.1% 0.027 264.364);
+  --st-dragging-background-color: oklch(96.7% 0.003 264.542);
+  --st-selected-cell-background-color: oklch(96.7% 0.003 264.542);
+  --st-selected-first-cell-background-color: oklch(92.8% 0.006 264.531);
+  --st-footer-background-color: oklch(98.5% 0.002 247.839);
+  --st-cell-color: oklch(37.3% 0.034 259.733);
+  --st-cell-odd-row-color: oklch(37.3% 0.034 259.733);
+  --st-edit-cell-shadow: 0 4px 6px -1px rgba(106, 114, 130, 0.1),
+    0 2px 4px -1px rgba(106, 114, 130, 0.06);
+  --st-selected-cell-color: oklch(27.8% 0.033 256.848);
+  --st-selected-first-cell-color: oklch(27.8% 0.033 256.848);
+  --st-resize-handle-color: oklch(96.7% 0.003 264.542);
+  --st-separator-border-color: oklch(92.8% 0.006 264.531);
+  --st-last-group-row-separator-border-color: oklch(87.2% 0.01 258.338);
+  --st-selected-border-color: #6a7282;
+  --st-editable-cell-focus-border-color: #6a7282;
+  --st-checkbox-checked-background-color: #6a7282;
+  --st-checkbox-checked-border-color: #6a7282;
+  --st-column-editor-background-color: white;
+  --st-column-editor-popout-background-color: white;
+  --st-button-hover-background-color: oklch(96.7% 0.003 264.542);
+  --st-button-active-background-color: #6a7282;
+  --st-cell-flash-color: oklch(92.8% 0.006 264.531);
+  --st-copy-flash-color: #6a7282;
+  --st-warning-flash-color: oklch(80.8% 0.114 19.571);
+  --st-header-selected-background-color: #6a7282;
+  --st-header-selected-label-color: #6a7282;
+  --st-header-selected-icon-color: #6a7282;
+  --st-header-highlight-indicator-color: oklch(87.2% 0.01 258.338);
+  --st-selection-highlight-indicator-color: oklch(87.2% 0.01 258.338);
+  --st-drag-separator-color: #6a7282;
+  --st-next-prev-btn-color: oklch(44.6% 0.03 256.802);
+  --st-next-prev-btn-disabled-color: oklch(70.7% 0.022 261.325);
+  --st-page-btn-color: oklch(44.6% 0.03 256.802);
+  --st-page-btn-hover-background-color: oklch(96.7% 0.003 264.542);
+  --st-column-editor-text-color: oklch(55.1% 0.027 264.364);
+  --st-checkbox-border-color: oklch(87.2% 0.01 258.338);
+  --st-dropdown-group-label-color: oklch(55.1% 0.027 264.364);
+  --st-datepicker-weekday-color: oklch(55.1% 0.027 264.364);
+  --st-datepicker-other-month-color: oklch(70.7% 0.022 261.325);
+  --st-filter-button-disabled-background-color: oklch(87.2% 0.01 258.338);
+  --st-filter-button-disabled-text-color: oklch(55.1% 0.027 264.364);
+}
+
+.custom-theme-container.theme-custom-light .st-wrapper {
+  background-color: white;
+}
+
+.custom-theme-container.theme-custom-light .st-header-resize-handle {
+  background-color: oklch(96.7% 0.003 264.542);
+}
+
+.custom-theme-container.theme-custom-dark .theme-custom {
+  --st-border-radius: 4px;
+  --st-cell-padding: 12px;
+  --st-spacing-small: 6px;
+  --st-spacing-medium: 10px;
+  --st-scrollbar-bg-color: #1e293b;
+  --st-scrollbar-thumb-color: #475569;
+  --st-border-color: none;
+  --st-odd-row-background-color: #0f172a;
+  --st-even-row-background-color: #0f172a;
+  --st-odd-column-background-color: #0f172a;
+  --st-even-column-background-color: #1e293b;
+  --st-hover-row-background-color: #1e293b;
+  --st-selected-row-background-color: #1e293b;
+  --st-header-background-color: #0a0f1a;
+  --st-header-label-color: #94a3b8;
+  --st-header-icon-color: #94a3b8;
+  --st-dragging-background-color: #1e293b;
+  --st-selected-cell-background-color: #1e293b;
+  --st-selected-first-cell-background-color: #334155;
+  --st-footer-background-color: #0f172a;
+  --st-cell-color: #cbd5e1;
+  --st-cell-odd-row-color: #cbd5e1;
+  --st-edit-cell-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --st-selected-cell-color: #e2e8f0;
+  --st-selected-first-cell-color: #e2e8f0;
+  --st-resize-handle-color: #1e293b;
+  --st-separator-border-color: #334155;
+  --st-last-group-row-separator-border-color: #475569;
+  --st-selected-border-color: #94a3b8;
+  --st-editable-cell-focus-border-color: #94a3b8;
+  --st-checkbox-checked-background-color: #94a3b8;
+  --st-checkbox-checked-border-color: #94a3b8;
+  --st-column-editor-background-color: #1e293b;
+  --st-column-editor-popout-background-color: #1e293b;
+  --st-button-hover-background-color: #334155;
+  --st-button-active-background-color: #94a3b8;
+  --st-cell-flash-color: #334155;
+  --st-copy-flash-color: #94a3b8;
+  --st-warning-flash-color: #ef4444;
+  --st-header-selected-background-color: #94a3b8;
+  --st-header-selected-label-color: #94a3b8;
+  --st-header-selected-icon-color: #94a3b8;
+  --st-header-highlight-indicator-color: #475569;
+  --st-selection-highlight-indicator-color: #475569;
+  --st-drag-separator-color: #94a3b8;
+  --st-next-prev-btn-color: #cbd5e1;
+  --st-next-prev-btn-disabled-color: #64748b;
+  --st-page-btn-color: #cbd5e1;
+  --st-page-btn-hover-background-color: #334155;
+  --st-column-editor-text-color: #94a3b8;
+  --st-checkbox-border-color: #475569;
+  --st-dropdown-group-label-color: #94a3b8;
+  --st-datepicker-weekday-color: #94a3b8;
+  --st-datepicker-other-month-color: #64748b;
+  --st-filter-button-disabled-background-color: #334155;
+  --st-filter-button-disabled-text-color: #64748b;
+}
+
+.custom-theme-container.theme-custom-dark .st-wrapper {
+  background-color: #0f172a;
+}
+
+.custom-theme-container.theme-custom-dark .st-header-resize-handle {
+  background-color: #475569;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

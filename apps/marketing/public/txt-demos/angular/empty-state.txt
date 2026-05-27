@@ -1,0 +1,81 @@
+// empty-state-demo.component.ts
+import { ApplicationRef, Component, EnvironmentInjector, Input, inject } from "@angular/core";
+import { SimpleTableComponent, wrapAngularRenderer } from "@simple-table/angular";
+import type { AngularHeaderObject, Row, Theme } from "@simple-table/angular";
+import { emptyStateConfig } from "./empty-state.demo-data";
+import { TableEmptyStateComponent } from "./table-empty-state.component";
+import "@simple-table/angular/styles.css";
+
+@Component({
+  selector: "empty-state-demo",
+  standalone: true,
+  imports: [SimpleTableComponent],
+  template: `
+    <simple-table
+      [rows]="rows"
+      [defaultHeaders]="headers"
+      [height]="height"
+      [theme]="theme"
+      [tableEmptyStateRenderer]="emptyStateEl"
+    ></simple-table>
+  `,
+})
+export class EmptyStateDemoComponent {
+  @Input() height: string | number = "400px";
+  @Input() theme?: Theme;
+
+  private readonly appRef = inject(ApplicationRef);
+  private readonly envInjector = inject(EnvironmentInjector);
+
+  readonly rows: Row[] = emptyStateConfig.rows;
+  readonly headers: AngularHeaderObject[] = emptyStateConfig.headers;
+  readonly emptyStateEl = wrapAngularRenderer(
+    TableEmptyStateComponent,
+    this.appRef,
+    this.envInjector,
+  )({});
+}
+
+
+// empty-state.demo-data.ts
+// Self-contained demo table setup for this example.
+import type { AngularHeaderObject, Row } from "@simple-table/angular";
+
+
+export const emptyStateData: Row[] = [];
+
+export const emptyStateHeaders: AngularHeaderObject[] = [
+  { accessor: "id", label: "ID", width: 60, type: "number" },
+  { accessor: "name", label: "Name", width: 180, type: "string" },
+  { accessor: "email", label: "Email", width: 220, type: "string" },
+  { accessor: "role", label: "Role", width: 140, type: "string" },
+  { accessor: "department", label: "Department", width: 150, type: "string" },
+];
+
+export const emptyStateConfig = {
+  headers: emptyStateHeaders,
+  rows: emptyStateData,
+} as const;
+
+
+// table-empty-state.component.ts
+import { Component } from "@angular/core";
+
+@Component({
+  selector: "demo-table-empty-state",
+  standalone: true,
+  template: `
+    <div
+      style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;color:#64748b;gap:12px;"
+    >
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7" />
+        <path d="M16 3H8L3 7h18l-5-4z" />
+        <line x1="10" y1="12" x2="14" y2="12" />
+      </svg>
+      <div style="font-size:16px;font-weight:600;">No data available</div>
+      <div style="font-size:13px;">Try adjusting your filters or adding new records.</div>
+    </div>
+  `,
+})
+export class TableEmptyStateComponent {}

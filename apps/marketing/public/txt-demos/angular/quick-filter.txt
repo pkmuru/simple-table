@@ -1,0 +1,116 @@
+// quick-filter-demo.component.ts
+import { Component, Input } from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import {SimpleTableComponent} from "@simple-table/angular";import type { AngularHeaderObject, QuickFilterMode, Row, Theme } from "@simple-table/angular";
+import { quickFilterConfig } from "./quick-filter.demo-data";
+import "@simple-table/angular/styles.css";
+
+@Component({
+  selector: "quick-filter-demo",
+  standalone: true,
+  imports: [SimpleTableComponent, FormsModule],
+  template: `
+    <div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center">
+        <input
+          type="text"
+          placeholder="Search..."
+          [(ngModel)]="searchText"
+          style="padding: 6px 12px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px; min-width: 200px"
+        />
+        <button
+          (click)="filterMode = 'simple'"
+          [style.padding]="'6px 14px'"
+          [style.borderRadius]="'6px'"
+          [style.border]="filterMode === 'simple' ? '2px solid #3b82f6' : '1px solid #d1d5db'"
+          [style.background]="filterMode === 'simple' ? '#eff6ff' : '#fff'"
+          [style.color]="filterMode === 'simple' ? '#1d4ed8' : '#374151'"
+          [style.fontWeight]="filterMode === 'simple' ? 600 : 400"
+          [style.cursor]="'pointer'"
+          [style.fontSize]="'13px'"
+        >
+          Simple
+        </button>
+        <button
+          (click)="filterMode = 'smart'"
+          [style.padding]="'6px 14px'"
+          [style.borderRadius]="'6px'"
+          [style.border]="filterMode === 'smart' ? '2px solid #3b82f6' : '1px solid #d1d5db'"
+          [style.background]="filterMode === 'smart' ? '#eff6ff' : '#fff'"
+          [style.color]="filterMode === 'smart' ? '#1d4ed8' : '#374151'"
+          [style.fontWeight]="filterMode === 'smart' ? 600 : 400"
+          [style.cursor]="'pointer'"
+          [style.fontSize]="'13px'"
+        >
+          Smart
+        </button>
+        <button
+          (click)="caseSensitive = !caseSensitive"
+          [style.padding]="'6px 14px'"
+          [style.borderRadius]="'6px'"
+          [style.border]="caseSensitive ? '2px solid #3b82f6' : '1px solid #d1d5db'"
+          [style.background]="caseSensitive ? '#eff6ff' : '#fff'"
+          [style.color]="caseSensitive ? '#1d4ed8' : '#374151'"
+          [style.fontWeight]="caseSensitive ? 600 : 400"
+          [style.cursor]="'pointer'"
+          [style.fontSize]="'13px'"
+        >
+          Case Sensitive
+        </button>
+      </div>
+      <simple-table
+        [rows]="rows"
+        [defaultHeaders]="headers"
+        [height]="height"
+        [theme]="theme"
+        [quickFilter]="{ text: searchText, mode: filterMode, caseSensitive: caseSensitive }"
+      ></simple-table>
+    </div>
+  `,
+})
+export class QuickFilterDemoComponent {
+  @Input() height: string | number = "400px";
+  @Input() theme?: Theme;
+
+  readonly rows: Row[] = quickFilterConfig.rows;
+  readonly headers: AngularHeaderObject[] = quickFilterConfig.headers;
+  searchText = "";
+  filterMode: QuickFilterMode = "simple";
+  caseSensitive = false;
+}
+
+
+// quick-filter.demo-data.ts
+// Self-contained demo table setup for this example.
+import type { AngularHeaderObject } from "@simple-table/angular";
+
+
+export const quickFilterHeaders: AngularHeaderObject[] = [
+  { accessor: "name", label: "Employee Name", width: 180, type: "string" },
+  { accessor: "age", label: "Age", width: 80, type: "number" },
+  { accessor: "department", label: "Department", width: 140, type: "string" },
+  { accessor: "salary", label: "Salary", width: 120, type: "number", valueFormatter: ({ value }) => `$${(value || 0).toLocaleString()}`, align: "right" },
+  { accessor: "status", label: "Status", width: 100, type: "string" },
+  { accessor: "location", label: "Location", width: 140, type: "string" },
+];
+
+export const quickFilterData = [
+  { id: 1, name: "Alice Johnson", age: 28, department: "Engineering", salary: 95000, status: "Active", location: "New York" },
+  { id: 2, name: "Bob Smith", age: 35, department: "Sales", salary: 75000, status: "Active", location: "Los Angeles" },
+  { id: 3, name: "Charlie Davis", age: 42, department: "Engineering", salary: 110000, status: "Active", location: "San Francisco" },
+  { id: 4, name: "Diana Prince", age: 31, department: "Marketing", salary: 82000, status: "Inactive", location: "Chicago" },
+  { id: 5, name: "Ethan Hunt", age: 29, department: "Sales", salary: 78000, status: "Active", location: "Boston" },
+  { id: 6, name: "Fiona Green", age: 38, department: "Engineering", salary: 105000, status: "Active", location: "Seattle" },
+  { id: 7, name: "George Wilson", age: 26, department: "Marketing", salary: 68000, status: "Active", location: "Austin" },
+  { id: 8, name: "Hannah Lee", age: 33, department: "Sales", salary: 88000, status: "Inactive", location: "Denver" },
+  { id: 9, name: "Isaac Chen", age: 27, department: "Engineering", salary: 92000, status: "Active", location: "San Diego" },
+  { id: 10, name: "Julia Brown", age: 30, department: "Marketing", salary: 72000, status: "Inactive", location: "Miami" },
+  { id: 11, name: "Kevin Davis", age: 28, department: "Sales", salary: 85000, status: "Active", location: "Phoenix" },
+  { id: 12, name: "Laura Garcia", age: 32, department: "Engineering", salary: 102000, status: "Active", location: "San Antonio" },
+];
+
+export const quickFilterConfig = {
+  headers: quickFilterHeaders,
+  rows: quickFilterData,
+  tableProps: { quickFilter: { text: "", mode: "simple" as const, caseSensitive: false } },
+} as const;

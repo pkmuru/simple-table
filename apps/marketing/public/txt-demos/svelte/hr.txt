@@ -1,0 +1,176 @@
+// HRDemo.svelte
+<script lang="ts">
+  import { SimpleTable } from "@simple-table/svelte";
+  import type { Theme, SvelteHeaderObject, CellChangeProps } from "@simple-table/svelte";
+  import { hrConfig } from "./hr.demo-data";
+  import HrFullNameCell from "./HrFullNameCell.svelte";
+  import HrPerformanceCell from "./HrPerformanceCell.svelte";
+  import HrHireDateCell from "./HrHireDateCell.svelte";
+  import HrYearsCell from "./HrYearsCell.svelte";
+  import HrSalaryCell from "./HrSalaryCell.svelte";
+  import HrStatusCell from "./HrStatusCell.svelte";
+  import "@simple-table/svelte/styles.css";
+
+  let { height = "400px", theme }: { height?: string | number; theme?: Theme } = $props();
+
+  let data = $state([...hrConfig.rows]);
+
+  const renderers: Record<string, unknown> = {
+    fullName: HrFullNameCell,
+    performanceScore: HrPerformanceCell,
+    hireDate: HrHireDateCell,
+    yearsOfService: HrYearsCell,
+    salary: HrSalaryCell,
+    status: HrStatusCell,
+  };
+
+  const headers = $derived(
+    hrConfig.headers.map((h) => {
+      const cellRenderer = renderers[h.accessor as string];
+      return cellRenderer ? { ...h, cellRenderer } : { ...h };
+    }),
+  );
+
+  const rowHeight = 48;
+  const heightNum = $derived(typeof height === "number" ? height : 400);
+  const rowsPerPage = $derived(Math.floor(heightNum / rowHeight));
+
+  function handleCellEdit({ accessor, newValue, row }: CellChangeProps) {
+    data = data.map((item) => (item.id === row.id ? { ...item, [accessor]: newValue } : item));
+  }
+</script>
+
+<SimpleTable
+  columnReordering={true}
+  columnResizing={true}
+  customTheme={{ rowHeight }}
+  defaultHeaders={headers}
+  onCellEdit={handleCellEdit}
+  rows={data}
+  {height}
+  {rowsPerPage}
+  selectableCells={true}
+  shouldPaginate={true}
+  {theme}
+/>
+
+
+// HrFullNameCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getHRThemeColors } from "./hr.demo-data";
+  import type { HREmployee } from "./hr.demo-data";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as HREmployee);
+  const c = $derived(getHRThemeColors(theme));
+  const initials = $derived(`${d.firstName?.charAt(0) || ""}${d.lastName?.charAt(0) || ""}`);
+</script>
+
+<div style="display:flex;align-items:center;">
+  <div
+    style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background-color:{c.avatarBg};color:{c.avatarText};font-size:12px;"
+  >
+    {initials}
+  </div>
+  <div style="margin-left:8px;">
+    <div>{d.fullName}</div>
+    <div style="font-size:12px;color:{c.grayMuted};">{d.position}</div>
+  </div>
+</div>
+
+
+// HrHireDateCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getHRThemeColors } from "./hr.demo-data";
+  import type { HREmployee } from "./hr.demo-data";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as HREmployee);
+  const c = $derived(getHRThemeColors(theme));
+  const label = $derived.by(() => {
+    if (!d.hireDate) return "";
+    const [year, month, day] = d.hireDate.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  });
+</script>
+
+{#if label}
+  <span style="color:{c.gray};">{label}</span>
+{/if}
+
+
+// HrPerformanceCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getHRThemeColors } from "./hr.demo-data";
+  import type { HREmployee } from "./hr.demo-data";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as HREmployee);
+  const score = $derived(d.performanceScore);
+  const c = $derived(getHRThemeColors(theme));
+  const barColor = $derived(score >= 90 ? c.progressSuccess : score >= 65 ? c.progressNormal : c.progressException);
+</script>
+
+<div style="width:100%;display:flex;flex-direction:column;">
+  <div
+    style="background-color:{c.progressBg};height:6px;width:100%;border-radius:100px;overflow:hidden;"
+  >
+    <div style="height:100%;width:{score}%;background-color:{barColor};border-radius:100px;"></div>
+  </div>
+  <div style="font-size:12px;text-align:center;margin-top:4px;color:{c.gray};">{score}/100</div>
+</div>
+
+
+// HrSalaryCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getHRThemeColors } from "./hr.demo-data";
+  import type { HREmployee } from "./hr.demo-data";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as HREmployee);
+  const c = $derived(getHRThemeColors(theme));
+</script>
+
+<span style="color:{c.gray};">${d.salary.toLocaleString()}</span>
+
+
+// HrStatusCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getHRThemeColors, HR_STATUS_COLOR_MAP } from "./hr.demo-data";
+  import type { HREmployee } from "./hr.demo-data";
+
+  let { row, theme }: CellRendererProps = $props();
+  const d = $derived(row as unknown as HREmployee);
+  const c = $derived(getHRThemeColors(theme));
+  const tagColors = $derived.by(() => {
+    if (!d.status) return null;
+    const colorKey = HR_STATUS_COLOR_MAP[d.status] || "default";
+    return c.tagColors[colorKey] || c.tagColors.default;
+  });
+</script>
+
+{#if d.status && tagColors}
+  <span
+    style="background-color:{tagColors.bg};color:{tagColors.text};padding:0 7px;font-size:12px;line-height:20px;border-radius:2px;display:inline-block;"
+    >{d.status}</span>
+{/if}
+
+
+// HrYearsCell.svelte
+<script lang="ts">
+  import type { CellRendererProps } from "@simple-table/svelte";
+  import { getHRThemeColors } from "./hr.demo-data";
+
+  let { row, theme }: CellRendererProps = $props();
+  const c = $derived(getHRThemeColors(theme));
+</script>
+
+{#if row.yearsOfService !== null}
+  <span style="color:{c.gray};">{row.yearsOfService} yrs</span>
+{/if}
